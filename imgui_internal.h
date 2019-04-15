@@ -1570,7 +1570,6 @@ struct ImGuiOldColumns
 // [SECTION] Multi-select support
 //-----------------------------------------------------------------------------
 
-#define IMGUI_HAS_MULTI_SELECT 1
 #ifdef IMGUI_HAS_MULTI_SELECT
 
 struct IMGUI_API ImGuiMultiSelectState
