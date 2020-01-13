@@ -6201,7 +6201,7 @@ bool ImGui::TreeNodeBehavior(ImGuiID id, ImGuiTreeNodeFlags flags, const char* l
     const bool was_selected = selected;
 
     // Multi-selection support (header)
-    const bool is_multi_select = (g.MultiSelectScopeWindow == window);
+    const bool is_multi_select = g.MultiSelectEnabled;
     if (is_multi_select)
     {
         flags |= ImGuiTreeNodeFlags_OpenOnArrow;
@@ -6533,7 +6533,7 @@ bool ImGui::Selectable(const char* label, bool selected, ImGuiSelectableFlags fl
     if (flags & ImGuiSelectableFlags_AllowItemOverlap)  { button_flags |= ImGuiButtonFlags_AllowItemOverlap; }
 
     // Multi-selection support (header)
-    const bool is_multi_select = (g.MultiSelectScopeWindow == window);
+    const bool is_multi_select = g.MultiSelectEnabled;
     const bool was_selected = selected;
     if (is_multi_select)
     {
@@ -6647,17 +6647,20 @@ bool ImGui::Selectable(const char* label, bool* p_selected, ImGuiSelectableFlags
 
 ImGuiMultiSelectData* ImGui::BeginMultiSelect(ImGuiMultiSelectFlags flags, void* range_ref, bool range_ref_is_selected)
 {
-    ImGuiContext& g = *ImGui::GetCurrentContext();
+    ImGuiContext& g = *GImGui;
     ImGuiWindow* window = g.CurrentWindow;
 
-    IM_ASSERT(g.MultiSelectScopeId == 0);    // No recursion allowed yet (we could allow it if we deem it useful)
+    IM_ASSERT(g.MultiSelectEnabled == false);   // No recursion allowed yet (we could allow it if we deem it useful)
     IM_ASSERT(g.MultiSelectFlags == 0);
+    IM_ASSERT(g.MultiSelectState.FocusScopeId == 0);
 
+    // FIXME: BeginFocusScope()
     ImGuiMultiSelectState* ms = &g.MultiSelectState;
-    g.MultiSelectScopeId = window->IDStack.back();
-    g.MultiSelectScopeWindow = window;
-    g.MultiSelectFlags = flags;
     ms->Clear();
+    ms->FocusScopeId = window->IDStack.back();
+    PushFocusScope(ms->FocusScopeId);
+    g.MultiSelectEnabled = true;
+    g.MultiSelectFlags = flags;
 
     if ((flags & ImGuiMultiSelectFlags_NoMultiSelect) == 0)
     {
@@ -6666,7 +6669,7 @@ ImGuiMultiSelectData* ImGui::BeginMultiSelect(ImGuiMultiSelectFlags flags, void*
     }
 
     // Auto clear when using Navigation to move within the selection (we compare SelectScopeId so it possible to use multiple lists inside a same window)
-    if (g.NavJustMovedToId != 0 && g.NavJustMovedToFocusScopeId == g.MultiSelectScopeId)
+    if (g.NavJustMovedToId != 0 && g.NavJustMovedToFocusScopeId == ms->FocusScopeId && g.NavJustMovedToHasSelectionData)
     {
         if (g.IO.KeyShift)
             ms->InRequestSetRangeNav = true;
@@ -6689,14 +6692,16 @@ ImGuiMultiSelectData* ImGui::BeginMultiSelect(ImGuiMultiSelectFlags flags, void*
 
 ImGuiMultiSelectData* ImGui::EndMultiSelect()
 {
-    ImGuiContext& g = *ImGui::GetCurrentContext();
+    ImGuiContext& g = *GImGui;
     ImGuiMultiSelectState* ms = &g.MultiSelectState;
-    IM_ASSERT(g.MultiSelectScopeId != 0);
+    IM_ASSERT(g.MultiSelectState.FocusScopeId == g.CurrentFocusScopeId);
+
     if (g.MultiSelectFlags & ImGuiMultiSelectFlags_NoUnselect)
         ms->Out.RangeValue = true;
-    g.MultiSelectScopeId = 0;
-    g.MultiSelectScopeWindow = NULL;
-    g.MultiSelectFlags = 0;
+    g.MultiSelectState.FocusScopeId = 0;
+    PopFocusScope();
+    g.MultiSelectEnabled = false;
+    g.MultiSelectFlags = ImGuiMultiSelectFlags_None;
 
 #ifdef IMGUI_DEBUG_MULTISELECT
     if (ms->Out.RequestClear)     printf("[%05d] EndMultiSelect: RequestClear\n", g.FrameCount);
@@ -6710,17 +6715,22 @@ ImGuiMultiSelectData* ImGui::EndMultiSelect()
 void ImGui::SetNextItemSelectionData(void* item_data)
 {
     ImGuiContext& g = *GImGui;
-    IM_ASSERT(g.MultiSelectScopeId != 0);
     g.NextItemData.SelectionData = item_data;
-    g.NextItemData.MultiSelectScopeId = g.MultiSelectScopeId;
+    g.NextItemData.FocusScopeId = g.CurrentFocusScopeId;
+
+    // Note that the flag will be cleared by ItemAdd(), so it's only useful for Navigation code!
+    // This designed so widgets can also cheaply set this before calling ItemAdd(), so we are not tied to MultiSelect api.
+    g.NextItemData.Flags |= ImGuiNextItemDataFlags_HasSelectionData;
 }
 
 void ImGui::MultiSelectItemHeader(ImGuiID id, bool* p_selected)
 {
     ImGuiContext& g = *GImGui;
+    ImGuiWindow* window = g.CurrentWindow;
     ImGuiMultiSelectState* ms = &g.MultiSelectState;
 
-    IM_ASSERT(g.NextItemData.MultiSelectScopeId == g.MultiSelectScopeId && "Forgot to call SetNextItemSelectionData() prior to item, required in BeginMultiSelect()/EndMultiSelect() scope");
+    IM_UNUSED(window);
+    IM_ASSERT(g.NextItemData.FocusScopeId == g.CurrentFocusScopeId && "Forgot to call SetNextItemSelectionData() prior to item, required in BeginMultiSelect()/EndMultiSelect() scope");
     void* item_data = g.NextItemData.SelectionData;
 
     // Apply Clear/SelectAll requests requested by BeginMultiSelect().
@@ -6761,7 +6771,7 @@ void ImGui::MultiSelectItemFooter(ImGuiID id, bool* p_selected, bool* p_pressed)
     ImGuiMultiSelectState* ms = &g.MultiSelectState;
 
     void* item_data = g.NextItemData.SelectionData;
-    g.NextItemData.MultiSelectScopeId = 0;
+    g.NextItemData.FocusScopeId = 0;
 
     bool selected = *p_selected;
     bool pressed = *p_pressed;
