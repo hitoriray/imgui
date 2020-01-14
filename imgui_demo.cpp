@@ -1409,7 +1409,7 @@ static void ShowDemoWindowWidgets()
             };
 
             int COUNT = 1000;
-            HelpMarker("Hold CTRL and click to select multiple items. Hold SHIFT to select a range.");
+            HelpMarker("Hold CTRL and click to select multiple items. Hold SHIFT to select a range. Keyboard is also supported.");
             ImGui::CheckboxFlags("io.ConfigFlags: NavEnableKeyboard", (unsigned int*)&ImGui::GetIO().ConfigFlags, ImGuiConfigFlags_NavEnableKeyboard);
 
             if (ImGui::BeginListBox("##Basket", ImVec2(-FLT_MIN, ImGui::GetFontSize() * 20)))
@@ -1417,6 +1417,7 @@ static void ShowDemoWindowWidgets()
                 ImGuiMultiSelectData* multi_select_data = ImGui::BeginMultiSelect(ImGuiMultiSelectFlags_None, (void*)(intptr_t)selection_ref, selection.GetSelected((int)selection_ref));
                 if (multi_select_data->RequestClear) { selection.Clear(); }
                 if (multi_select_data->RequestSelectAll) { selection.SelectAll(COUNT); }
+                ImVec2 color_button_sz(ImGui::GetFontSize(), ImGui::GetFontSize());
                 ImGuiListClipper clipper;
                 clipper.Begin(COUNT);
                 while (clipper.Step())
@@ -1429,7 +1430,14 @@ static void ShowDemoWindowWidgets()
                         char label[64];
                         sprintf(label, "Object %05d (category: %s)", n, random_names[n % IM_ARRAYSIZE(random_names)]);
                         bool item_is_selected = selection.GetSelected(n);
-                        ImGui::SetNextItemMultiSelectData((void*)(intptr_t)n);
+
+                        // Emit a color button, to test that Shift+LeftArrow landing on an item that is not part
+                        // of the selection scope doesn't erroneously alter our selection.
+                        ImVec4 dummy_col = ImColor((ImU32)ImGui::GetID(label));
+                        ImGui::ColorButton("##", dummy_col, ImGuiColorEditFlags_NoTooltip, color_button_sz);
+                        ImGui::SameLine();
+
+                        ImGui::SetNextItemSelectionData((void*)(intptr_t)n);
                         if (ImGui::Selectable(label, item_is_selected))
                             selection.SetSelected(n, !item_is_selected);
                         ImGui::PopID();
@@ -1438,9 +1446,9 @@ static void ShowDemoWindowWidgets()
                 multi_select_data = ImGui::EndMultiSelect();
                 selection_ref = (int)(intptr_t)multi_select_data->RangeSrc;
                 ImGui::EndListBox();
-                if (multi_select_data->RequestClear) { selection.Clear(); }
+                if (multi_select_data->RequestClear)     { selection.Clear(); }
                 if (multi_select_data->RequestSelectAll) { selection.SelectAll(COUNT); }
-                if (multi_select_data->RequestSetRange) { selection.SetRange((int)(intptr_t)multi_select_data->RangeSrc, (int)(intptr_t)multi_select_data->RangeDst, multi_select_data->RangeValue ? 1 : 0); }
+                if (multi_select_data->RequestSetRange)  { selection.SetRange((int)(intptr_t)multi_select_data->RangeSrc, (int)(intptr_t)multi_select_data->RangeDst, multi_select_data->RangeValue ? 1 : 0); }
             }
             ImGui::TreePop();
         }
