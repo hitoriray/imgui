@@ -1740,7 +1740,7 @@ enum ImGuiMouseSource : int
 };
 
 // Flags for BeginMultiSelect().
-// This system is designed to allow mouse/keyboard multi-selection, including support for range-selection (SHIFT + click),
+// This system is designed to allow mouse/keyboard multi-selection, including support for range-selection (SHIFT+click and SHIFT+keyboard),
 // which is difficult to re-implement manually. If you disable multi-selection with ImGuiMultiSelectFlags_NoMultiSelect
 // (which is provided for consistency and flexibility), the whole BeginMultiSelect() system becomes largely overkill as
 // you can handle single-selection in a simpler manner by just calling Selectable() and reacting on clicks yourself.
@@ -1750,6 +1750,7 @@ enum ImGuiMultiSelectFlags_
     ImGuiMultiSelectFlags_NoMultiSelect     = 1 << 0,
     ImGuiMultiSelectFlags_NoUnselect        = 1 << 1,   // Disable unselecting items with CTRL+Click, CTRL+Space etc.
     ImGuiMultiSelectFlags_NoSelectAll       = 1 << 2,   // Disable CTRL+A shortcut to set RequestSelectAll
+    ImGuiMultiSelectFlags_ClearOnEscape     = 1 << 3,   // Enable ESC shortcut to clear selection
 };
 
 // Enumeration for ImGui::SetWindow***(), SetNextWindow***(), SetNextItem***() functions
@@ -2441,6 +2442,7 @@ IM_MSVC_RUNTIME_CHECKS_RESTORE
 #define IMGUI_HAS_MULTI_SELECT      // Multi-Select/Range-Select WIP branch // <-- This is currently _not_ in the top of imgui.h to prevent merge conflicts.
 struct ImGuiMultiSelectData
 {
+    bool    IsFocused;              // Begin        // Set if currently focusing the selection scope (any item of the selection). May be used if you have custom shortcut associated to selection.
     bool    RequestClear;           // Begin, End   // Request user to clear selection
     bool    RequestSelectAll;       // Begin, End   // Request user to select all
     bool    RequestSetRange;        // End          // Request user to set or clear selection in the [RangeSrc..RangeDst] range
@@ -2453,6 +2455,7 @@ struct ImGuiMultiSelectData
     ImGuiMultiSelectData()  { Clear(); }
     void Clear()
     {
+        IsFocused = false;
         RequestClear = RequestSelectAll = RequestSetRange = RangeSrcPassedBy = RangeValue = false;
         RangeSrc = RangeDst = NULL;
         RangeDirection = 0;

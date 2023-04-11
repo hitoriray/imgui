@@ -1426,7 +1426,8 @@ static void ShowDemoWindowWidgets()
             ImGui::Text("Selection size: %d", selection.GetSelectionSize());
             if (ImGui::BeginListBox("##Basket", ImVec2(-FLT_MIN, ImGui::GetFontSize() * 20)))
             {
-                ImGuiMultiSelectData* multi_select_data = ImGui::BeginMultiSelect(ImGuiMultiSelectFlags_None, (void*)(intptr_t)selection.RangeRef, selection.GetSelected(selection.RangeRef));
+                ImGuiMultiSelectFlags flags = ImGuiMultiSelectFlags_ClearOnEscape;
+                ImGuiMultiSelectData* multi_select_data = ImGui::BeginMultiSelect(flags, (void*)(intptr_t)selection.RangeRef, selection.GetSelected(selection.RangeRef));
                 if (multi_select_data->RequestClear)     { selection.Clear(); }
                 if (multi_select_data->RequestSelectAll) { selection.SelectAll(ITEMS_COUNT); }
 
