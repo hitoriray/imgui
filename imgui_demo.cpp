@@ -1444,10 +1444,6 @@ static void ShowDemoWindowWidgets()
 
                 for (int n = 0; n < ITEMS_COUNT; n++)
                 {
-                    // FIXME-MULTISELECT: This should not be needed but currently is because coarse clipping break the auto-setup.
-                    if (n > selection.RangeRef)
-                        multi_select_data->RangeSrcPassedBy = true;
-
                     char label[64];
                     sprintf(label, "Object %05d: %s", n, random_names[n % IM_ARRAYSIZE(random_names)]);
 
