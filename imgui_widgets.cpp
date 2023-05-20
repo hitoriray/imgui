@@ -6154,6 +6154,7 @@ bool ImGui::TreeNodeBehavior(ImGuiID id, ImGuiTreeNodeFlags flags, const char* l
     if (is_open && !g.NavIdIsAlive && (flags & ImGuiTreeNodeFlags_NavLeftJumpsBackHere) && !(flags & ImGuiTreeNodeFlags_NoTreePushOnOpen))
         window->DC.TreeJumpToParentOnPopMask |= (1 << window->DC.TreeDepth);
 
+    const bool is_multi_select = (g.NextItemData.Flags & ImGuiNextItemDataFlags_HasSelectionData) != 0; // Before ItemAdd()
     bool item_add = ItemAdd(interact_bb, id);
     g.LastItemData.StatusFlags |= ImGuiItemStatusFlags_HasDisplayRect;
     g.LastItemData.DisplayRect = frame_bb;
@@ -6199,7 +6200,6 @@ bool ImGui::TreeNodeBehavior(ImGuiID id, ImGuiTreeNodeFlags flags, const char* l
     const bool was_selected = selected;
 
     // Multi-selection support (header)
-    const bool is_multi_select = (g.MultiSelectState.Window == window);
     if (is_multi_select)
     {
         MultiSelectItemHeader(id, &selected);
@@ -6504,7 +6504,9 @@ bool ImGui::Selectable(const char* label, bool selected, ImGuiSelectableFlags fl
     }
 
     const bool disabled_item = (flags & ImGuiSelectableFlags_Disabled) != 0;
+    const bool is_multi_select = (g.NextItemData.Flags & ImGuiNextItemDataFlags_HasSelectionData) != 0; // Before ItemAdd()
     const bool item_add = ItemAdd(bb, id, NULL, disabled_item ? ImGuiItemFlags_Disabled : ImGuiItemFlags_None);
+
     if (span_all_columns)
     {
         window->ClipRect.Min.x = backup_clip_rect_min_x;
@@ -6535,7 +6537,6 @@ bool ImGui::Selectable(const char* label, bool selected, ImGuiSelectableFlags fl
     if (flags & ImGuiSelectableFlags_AllowItemOverlap)  { button_flags |= ImGuiButtonFlags_AllowItemOverlap; }
 
     // Multi-selection support (header)
-    const bool is_multi_select = (g.MultiSelectState.Window == window);
     const bool was_selected = selected;
     if (is_multi_select)
     {
@@ -6693,7 +6694,7 @@ ImGuiMultiSelectData* ImGui::BeginMultiSelect(ImGuiMultiSelectFlags flags, void*
                 ms->In.RequestSelectAll = true;
 
         if (flags & ImGuiMultiSelectFlags_ClearOnEscape)
-            if (Shortcut(ImGuiKey_Escape))
+            if (Shortcut(ImGuiKey_Escape)) // FIXME-MULTISELECT: Only hog shortcut if selection is not null, meaning we need "has selection or "selection size" data here.
                 ms->In.RequestClear = true;
     }
 
